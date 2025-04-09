@@ -85,3 +85,30 @@
     color: #1976d2;
     border: 1px solid #1976d2;
 }
+/* Estilos para el mensaje de error */
+.alert {
+    padding: 12px 20px;
+    background-color: #f8d7da; /* Fondo suave de error */
+    color: #721c24; /* Color del texto */
+    border: 1px solid #f5c6cb; /* Borde suave */
+    border-radius: 6px;
+    margin-bottom: 20px; /* Espacio entre el mensaje de error y otros elementos */
+    display: flex;
+    align-items: center; /* Alineación del texto y el ícono */
+    font-size: 14px;
+}
+
+.alert i {
+    margin-right: 10px; /* Espacio entre el ícono y el texto */
+    font-size: 18px; /* Tamaño del ícono */
+    color: #721c24; /* Color del ícono */
+}
+
+.alert p {
+    margin: 0;
+}
+
+/* Asegura que el texto y el fondo tengan buen contraste */
+.alert strong {
+    font-weight: bold;
+}

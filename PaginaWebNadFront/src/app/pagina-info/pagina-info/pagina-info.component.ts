@@ -1,85 +1,128 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { ReporteService } from '../../services/reporte.service';
+import { FiltrosRequest, ReporteDTO } from '../../interfaces/reporte';
 
 @Component({
   selector: 'app-pagina-info',
   templateUrl: './pagina-info.component.html',
   styleUrls: ['./pagina-info.component.css']
 })
-export class PaginaInfoComponent {
-  clientes = ['Cliente 1', 'Cliente 2', 'Cliente 3'];
-  servidores = ['Servidor 1', 'Servidor 2', 'Servidor 3'];
-  sistemas = ['Sistema A', 'Sistema B', 'Sistema C'];
+export class PaginaInfoComponent implements OnInit {
   filtros = {
     cliente: '',
-    servidor: '',
-    sistema: ''
+    usuario: ''
   };
 
-  // Datos simulados para la tabla
- // Datos simulados para la tabla
-tablaDatos = [
-  {
-    cliente: 'Cliente 1',
-    servidorApp: 'Servidor 1',
-    servidorBd: 'DB 1',
-    sox: 'Sí',
-    sgce: 'No',
-    sgro: 'Sí',
-    sgov: 'Sí',
-    sgi: 'No',
-    sgc: 'Sí',
-    sia: 'No',
-    sgov02: 'Sí',
-    sscs: 'No',
-    sgovvery: 'Sí',
-    sgfo: 'No',
-    mjeVlegal: 'Sí',
-    gtospes: 'No',
-    arco: 'Sí',
-    proformas: 'No',
-    sga: 'Sí'
-  },
-  {
-    cliente: 'Cliente 2',
-    servidorApp: 'Servidor 2',
-    servidorBd: 'DB 2',
-    sox: 'No',
-    sgce: 'Sí',
-    sgro: 'No',
-    sgov: 'No',
-    sgi: 'Sí',
-    sgc: 'No',
-    sia: 'Sí',
-    sgov02: 'No',
-    sscs: 'Sí',
-    sgovvery: 'No',
-    sgfo: 'Sí',
-    mjeVlegal: 'No',
-    gtospes: 'Sí',
-    arco: 'No',
-    proformas: 'Sí',
-    sga: 'No'
-  },
-  // Agregar más datos según sea necesario
-];
+  tablaDatos: ReporteDTO[] = [];
+  clientes: string[] = [];
+  usuarios: string[] = [];
 
+  isGenerating: boolean = false;  // Bandera de control para el botón
+  mensajeGenerando: string = '';  // Mensaje que se muestra mientras se genera el reporte
 
-  // Métodos para manejar los filtros
-  limpiarFiltros() {
-    this.filtros = {
-      cliente: '',
-      servidor: '',
-      sistema: ''
+  constructor(
+    private route: ActivatedRoute,
+    private reporteService: ReporteService
+  ) {}
+
+  ngOnInit() {
+    // Al cargar la página, se intentan recuperar los filtros desde sessionStorage
+    const filtrosGuardados = sessionStorage.getItem('filtros');
+    if (filtrosGuardados) {
+      this.filtros = JSON.parse(filtrosGuardados);
+    }
+
+    // Obtener parámetros de la URL y actualizar los filtros si no están vacíos
+    this.route.queryParams.subscribe(params => {
+      if (params['cliente']) {
+        this.filtros.cliente = params['cliente'];
+      }
+      if (params['usuario']) {
+        this.filtros.usuario = params['usuario'];
+      }
+      this.cargarDatos();
+    });
+
+    // Cargar datos de clientes y usuarios al inicializar
+    this.cargarClientes();
+    this.cargarUsuarios();
+  }
+
+  private cargarDatos() {
+    const filtrosRequest: FiltrosRequest = {
+      Clientes: this.filtros.cliente ? [this.filtros.cliente] : [],
+      Usuarios: this.filtros.usuario ? [this.filtros.usuario] : []
     };
+
+    console.log('Filtros enviados:', filtrosRequest);  // Verifica qué filtros se están enviando
+
+    this.reporteService.getReporteFiltrado(filtrosRequest).subscribe({
+      next: (data) => {
+        console.log('Datos recibidos:', data);  // Verifica qué datos se están recibiendo
+        this.tablaDatos = data;
+      },
+      error: (err) => {
+        console.error('Error al cargar datos:', err);
+      }
+    });
+  }
+
+  private cargarClientes() {
+    this.reporteService.getClientes().subscribe({
+      next: (data) => this.clientes = data,
+      error: (err) => console.error('Error al cargar clientes:', err)
+    });
+  }
+
+  private cargarUsuarios() {
+    this.reporteService.getUsuarios().subscribe({
+      next: (data) => this.usuarios = data,
+      error: (err) => console.error('Error al cargar usuarios:', err)
+    });
+  }
+
+  limpiarFiltros() {
+    this.filtros = { cliente: '', usuario: '' };
+    sessionStorage.setItem('filtros', JSON.stringify(this.filtros));  // Guardar los filtros limpios
+    this.cargarDatos();
   }
 
   filtrarDatos() {
-    // Aquí podrías agregar la lógica para filtrar según los filtros seleccionados
-    console.log('Filtrando datos...');
+    sessionStorage.setItem('filtros', JSON.stringify(this.filtros));  // Guardar los filtros actuales
+    this.cargarDatos();
   }
 
   generarReporte() {
-    // Simulación de generación de reporte (sin funcionalidad real)
-    console.log('Generando reporte...');
+    if (this.isGenerating) return;
+
+    this.isGenerating = true;
+    this.mensajeGenerando = 'Generando reporte...';
+
+    const filtrosRequest: FiltrosRequest = {
+      Clientes: this.filtros.cliente ? [this.filtros.cliente] : [],
+      Usuarios: this.filtros.usuario ? [this.filtros.usuario] : []
+    };
+
+    this.reporteService.generarExcel(filtrosRequest).subscribe({
+      next: (blob) => {
+        const link = document.createElement('a');
+        const url = window.URL.createObjectURL(blob);
+        link.href = url;
+        link.download = `Reporte_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+
+        setTimeout(() => {
+          this.isGenerating = false;
+          this.mensajeGenerando = '';
+        }, 5000);
+      },
+      error: (error) => {
+        console.error('Error al generar el reporte:', error);
+        this.isGenerating = false;
+        this.mensajeGenerando = 'Hubo un error al generar el reporte. Inténtalo de nuevo.';
+      }
+    });
   }
 }
